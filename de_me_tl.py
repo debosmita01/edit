@@ -357,7 +357,7 @@ class DE_ME:
         for i in range(self._pop_size):
             latents.append(np.random.uniform(-10, 10, 64 * self._no_seg))
             
-        futures=[evaluate.remote(l, n_seg, modl, ds, b1, b2, b3) for l in latents]
+        futures=[evaluate.remote(l, self._no_seg, self._model, self._dataset, self._bin1, self._bin2, self._bin3) for l in latents]
         results = ray.get(futures)
         for r in results:
             self._map.add(r)
@@ -373,7 +373,7 @@ class DE_ME:
         pending = []
         
         cnt = 0
-        for e in evals:
+        for e in range(evals):
             while len(pending) < cpus and cnt < evals:
                 print("arc size", len((self._map)._map))
                 t, d1, d2, d3 = self._map.random_sample()
@@ -383,8 +383,10 @@ class DE_ME:
             done, pending = ray.wait(pending)
             self._map.add(ray.get(done[0]))
             
-            if e % 100 == 0:
+            if e % 1000 == 0:
                 print("Evals: {} - {}".format(e, str(self._map)))
+                self.save(path)
+            if e % 100 == 0:
                 text_file = open(save_path + "/log.txt", "a")
                 text_file.write("Evals: {} - {} \n".format(g, str(de_me._map)))
                 text_file.close()
@@ -395,7 +397,7 @@ class DE_ME:
     def load(self, folder):
         self._map.load(folder)
 
-def main(resume):
+def main():
     behavior1 = "linearity"
     behavior2 = "lineancy"
     behavior3 = "distance_SMB"
@@ -403,11 +405,9 @@ def main(resume):
 
     pop_size = 100
     no_seg = 1
-    generations = 10000
+    evaluations = 3000
     sf = 0.2
     cr = 0.5
-    # bounds = [(-1, 1)] * (64 * no_seg)
-    bounds = None
 
     bin1 = [0, .005, .010, .015, .020, .025, .030, .035, .040]  # linearity
     bin2 = [0, 1, 2, 3, 4, 5, 6, 7, 8]  # lineancy
@@ -416,48 +416,43 @@ def main(resume):
     smb_lvls = "./smb_data.csv"
     dataset = [line for line in csv.reader(open(smb_lvls))]
 
-    model_path = "./SMB_models/smb_vae_2_1/equal_loss.pt"
+    model_path = "./SMB_models/smb_vae_3_1/equal_loss.pt"
     vae = model.VAE()
     vae.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
     vae.eval()
 
-    save_path = "./tst"   #"./de_me_vae2/tl_vae2_eq_1"
+    save_path = "./tst"   #"./de_me_vae3/tl_vae3_eq_1"
     
-    if not resume:
-        os.makedirs(save_path)
-        details_file = save_path + "/details.json"
-        with open(details_file, 'w') as f:
-            temp = {
-                "pop_size": pop_size,
-                "generations": generations,
-                "scaling_factor": sf,
-                "crossover_rate": cr,
-                "bounds": "none",
-                "no_of_segments": no_seg,
-                "vae_model": "smb_vae_2_1/equal_loss",
-                "fitness": fitness,
-                "behavior_1": behavior1,
-                "behavior_2": behavior2,
-                "behavior_3": behavior3,
-                "bin1": str(bin1),
-                "bin2": str(bin2),
-                "bin3": str(bin3),
-                "playability": "astar, 3, 50",
-                "init": "random uniform -10,10"
-            }
-            f.write(json.dumps(temp))
-
-        de_me = DE_ME(pop_size, no_seg, vae, model_path, dataset, bin1, bin2, bin3)
-        de_me.save(save_path)
-        print("population created")
-        de_me.run_de_me(sf, cr, generations, save_path,n_cpu=49)   
-        print("{}".format(str(de_me._map)))
-        de_me.save(save_path)
-        print("saved")
-    else:
-        print("resume")
-
-ray.init(num_cpus=48)
+    os.makedirs(save_path)
+    details_file = save_path + "/details.json"
+    with open(details_file, 'w') as f:
+        temp = {
+            "pop_size": pop_size,
+            "generations": generations,
+            "scaling_factor": sf,
+            "crossover_rate": cr,
+            "bounds": "none",
+            "no_of_segments": no_seg,
+            "vae_model": "smb_vae_2_1/equal_loss",
+            "fitness": fitness,
+            "behavior_1": behavior1,
+            "behavior_2": behavior2,
+            "behavior_3": behavior3,
+            "bin1": str(bin1),
+            "bin2": str(bin2),
+            "bin3": str(bin3),
+            "playability": "astar, 3, 50",
+            "init": "random uniform -10,10"
+        }
+        f.write(json.dumps(temp))
+    de_me = DE_ME(pop_size, no_seg, vae, model_path, dataset, bin1, bin2, bin3)
+    de_me.save(save_path)
+    print("population created")
+    de_me.run_de_me(sf, cr, evaluations, save_path,n_cpu=96)   
+    print("Eolution complete : {}".format(str(de_me._map)))
+    de_me.save(save_path)
+    print("saved")
+    
+ray.init(num_cpus=96)
 if __name__ == '__main__':
-    resume = False
-    main(resume)
+    main()
