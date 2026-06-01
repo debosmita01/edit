@@ -32,51 +32,55 @@ def parallel(data, model, dataset):
     data["tpkldiv"] = tpkldiv
     return data
 
-from SMB_models.smb_vae_2_1 import model
 
-model2_val = model.VAE().float()
-model2_val.load_state_dict(torch.load("./SMB_models/smb_vae_2_1/val_model.pt"))
-model2_val.eval()
+def main():
+    from SMB_models.smb_vae_2_1 import model
 
-model2_15x = model.VAE().float()
-model2_15x.load_state_dict(torch.load("./SMB_models/smb_vae_2_1/1_5x_loss.pt"))
-model2_15x.eval()
+    model2_val = model.VAE().float()
+    model2_val.load_state_dict(torch.load("./SMB_models/smb_vae_2_1/val_model.pt"))
+    model2_val.eval()
 
-model2_2x = model.VAE().float()
-model2_2x.load_state_dict(torch.load("./SMB_models/smb_vae_2_1/2x_loss.pt"))
-model2_2x.eval()
+    model2_15x = model.VAE().float()
+    model2_15x.load_state_dict(torch.load("./SMB_models/smb_vae_2_1/1_5x_loss.pt"))
+    model2_15x.eval()
 
-dirs = ["logit_vae2_val_", "logit_vae2_15x_", "logit_vae2_2x_", "tile_vae2_val_", "tile_vae2_15x_", "tile_vae2_2x_"]
-models = [model2_val, model2_15x, model2_2x, model2_val, model2_15x, model2_2x]
+    model2_2x = model.VAE().float()
+    model2_2x.load_state_dict(torch.load("./SMB_models/smb_vae_2_1/2x_loss.pt"))
+    model2_2x.eval()
 
-ds_path = "./SMB_levels/"
-files_list = os.listdir(ds_path)
-dataset = []
-for fl in files_list:
-    dataset.append(get_level(ds_path+fl))
+    dirs = ["logit_vae2_val_", "logit_vae2_15x_", "logit_vae2_2x_", "tile_vae2_val_", "tile_vae2_15x_", "tile_vae2_2x_"]
+    models = [model2_val, model2_15x, model2_2x, model2_val, model2_15x, model2_2x]
 
-for i in range(len(dirs)):
-    d = dir[i]
-    model = models[i]
-    for i in range(1, 6):
-        path = "./vae2/" + d+str(i)
-        files = os.listdir(path)
-        os.mkdir("./vae2_lvls/" + d+str(i))
-        arr = []
-        for file in files:
-            if file != "details.json" and file != "log.txt":
-                with open(path + '/' + file, 'r') as f:
-                    temp = json.load(f)
-                    temp["f_name"] = file
-                    arr.append(temp)
-                    
-        futures=[parallel.remote(a, model, dataset) for a in arr]
-        results = ray.get(futures)
-        for r in results:
-            file_name = r["f_name"]
-            with open(file_name, 'w') as f:
-                f.write(json.dumps(r))         
+    ds_path = "./SMB_levels/"
+    files_list = os.listdir(ds_path)
+    dataset = []
+    for fl in files_list:
+        dataset.append(get_level(ds_path+fl))
+
+    for i in range(len(dirs)):
+        d = dir[i]
+        model = models[i]
+        for i in range(1, 6):
+            path = "./vae2/" + d+str(i)
+            files = os.listdir(path)
+            os.mkdir("./vae2_lvls/" + d+str(i))
+            arr = []
+            for file in files:
+                if file != "details.json" and file != "log.txt":
+                    with open(path + '/' + file, 'r') as f:
+                        temp = json.load(f)
+                        temp["f_name"] = file
+                        arr.append(temp)
+
+            futures=[parallel.remote(a, model, dataset) for a in arr]
+            results = ray.get(futures)
+            for r in results:
+                file_name = r["f_name"]
+                with open(file_name, 'w') as f:
+                    f.write(json.dumps(r))         
         
                     
-        
+ray.init(num_cpus=48)
+if __name__ == '__main__':
+    main()        
         
