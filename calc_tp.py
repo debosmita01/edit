@@ -9,23 +9,41 @@ import ray
 from tpkldiv import get_min_tpkldiv
 
 
+def get_level(filename):
+    temp = open(filename).readlines()
+    lvl = []    
+    for l in temp:
+        if(len(l.strip()) > 0):
+            lvl.append(l.strip())
+    return lvl
+
 def string2array(string):
     string = string.replace("[", "").replace("]", "")
     arr = np.fromstring(string, dtype=float, sep=' ')
     return np.array(arr)
 
-def gen_level(latent_arr, no_seg, model):
-    latent = np.asarray(np.array_split(latent_arr, no_seg))
-    output = model.decoder(torch.tensor(latent).float())
-    segments = []
-    for j in range(len(output)):
-        segments.append(to_text(output[j]))
-    lvl = concat_segments(segments)
-    return lvl
+def concat_segments(arr):
+    lvl = arr[0]
+    for i in range(1,len(arr)):
+        lvl = np.concatenate((lvl,arr[i]),axis=1)
+    width = len(lvl[0])
+    height = len(lvl)
+    result = ""
+    for y in range(height):  
+        for x in range(width):
+            result += lvl[y][x]
+        result += '\n'
+    return result
 
-def parallel(data, model, dataset):
+@ray.remote
+def run_parallel(data, model, dataset):
     latent = string2array(data["genes"])
-    lvl = gen_level(latent, 1, model)
+    g = np.asarray(np.array_split(level, 1))
+    pop_output = model.decoder(torch.tensor(g).float())
+    segments = []
+    for j in range(len(pop_output)):
+        segments.append(to_text(pop_output[j]))
+    lvl = concat_segments(segments)
     tpkldiv = get_min_tpkldiv(lvl, dataset)
                 
     data["level"] = lvl
@@ -63,7 +81,7 @@ def main():
         for i in range(1, 6):
             path = "./vae2/" + d+str(i)
             files = os.listdir(path)
-            os.mkdir("./vae2_lvls/" + d+str(i))
+            os.mkdir("./vae2_lvls/" + d + "lvls_" + str(i))
             arr = []
             for file in files:
                 if file != "details.json" and file != "log.txt":
@@ -72,10 +90,10 @@ def main():
                         temp["f_name"] = file
                         arr.append(temp)
 
-            futures=[parallel.remote(a, model, dataset) for a in arr]
+            futures=[run_parallel.remote(a, model, dataset) for a in arr]
             results = ray.get(futures)
             for r in results:
-                file_name = r["f_name"]
+                file_name = "./vae2_lvls/" + d + "lvls_" + str(i) + "/" + r["f_name"]
                 with open(file_name, 'w') as f:
                     f.write(json.dumps(r))         
         
