@@ -52,22 +52,22 @@ def run_parallel(data, model, dataset):
 
 
 def main():
-    from SMB_models.smb_vae_2_1 import model
+    from SMB_models.smb_vae_3_1 import model
 
-    model2_val = model.VAE().float()
-    model2_val.load_state_dict(torch.load("./SMB_models/smb_vae_2_1/val_model.pt"))
-    model2_val.eval()
+    model_val = model.VAE().float()
+    model_val.load_state_dict(torch.load("./SMB_models/smb_vae_3_1/val_model.pt"))
+    model_val.eval()
 
-    model2_15x = model.VAE().float()
-    model2_15x.load_state_dict(torch.load("./SMB_models/smb_vae_2_1/1_5x_loss.pt"))
-    model2_15x.eval()
+    model_15x = model.VAE().float()
+    model_15x.load_state_dict(torch.load("./SMB_models/smb_vae_3_1/1_5x_loss.pt"))
+    model_15x.eval()
 
-    model2_2x = model.VAE().float()
-    model2_2x.load_state_dict(torch.load("./SMB_models/smb_vae_2_1/2x_loss.pt"))
-    model2_2x.eval()
+    model_2x = model.VAE().float()
+    model_2x.load_state_dict(torch.load("./SMB_models/smb_vae_3_1/2x_loss.pt"))
+    model_2x.eval()
 
-    dirs = ["logit_vae2_val_", "logit_vae2_15x_", "logit_vae2_2x_", "tile_vae2_val_", "tile_vae2_15x_", "tile_vae2_2x_"]
-    models = [model2_val, model2_15x, model2_2x, model2_val, model2_15x, model2_2x]
+    dirs = ["logit_vae3_val_", "logit_vae3_15x_", "logit_vae3_2x_", "tile_vae3_val_", "tile_vae3_15x_", "tile_vae3_2x_"]
+    models = [model_val, model_15x, model_2x, model_val, model_15x, model_2x]
 
     ds_path = "./SMB_levels/"
     files_list = os.listdir(ds_path)
@@ -79,9 +79,9 @@ def main():
         d = dir[i]
         model = models[i]
         for i in range(1, 6):
-            path = "./vae2/" + d+str(i)
+            path = "./vae3/" + d+str(i)
             files = os.listdir(path)
-            os.mkdir("./vae2_lvls/" + d + "lvls_" + str(i))
+            os.mkdir("./vae3_lvls/" + d + "lvls_" + str(i))
             arr = []
             for file in files:
                 if file != "details.json" and file != "log.txt":
@@ -93,7 +93,7 @@ def main():
             futures=[run_parallel.remote(a, model, dataset) for a in arr]
             results = ray.get(futures)
             for r in results:
-                file_name = "./vae2_lvls/" + d + "lvls_" + str(i) + "/" + r["f_name"]
+                file_name = "./vae3_lvls/" + d + "lvls_" + str(i) + "/" + r["f_name"]
                 with open(file_name, 'w') as f:
                     f.write(json.dumps(r))         
         
