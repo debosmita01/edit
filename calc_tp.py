@@ -38,7 +38,7 @@ def concat_segments(arr):
 @ray.remote
 def run_parallel(data, model, dataset):
     latent = string2array(data["genes"])
-    g = np.asarray(np.array_split(level, 1))
+    g = np.asarray(np.array_split(latent, 1))
     pop_output = model.decoder(torch.tensor(g).float())
     segments = []
     for j in range(len(pop_output)):
@@ -76,7 +76,7 @@ def main():
         dataset.append(get_level(ds_path+fl))
 
     for i in range(len(dirs)):
-        d = dir[i]
+        d = dirs[i]
         model = models[i]
         for i in range(1, 6):
             path = "./vae3/" + d+str(i)
